@@ -21,11 +21,13 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-
+#include <cutils/log.h>
 #include <cutils/properties.h>
 
 static const char DAEMON_NAME[]        = "dhcpcd";
 static const char DAEMON_PROP_NAME[]   = "init.svc.dhcpcd";
+static const char DAEMON_NAME_ETH[]        = "dhcpcd_eth";
+static const char DAEMON_PROP_NAME_ETH[]   = "init.svc.dhcpcd_eth";
 static const char HOSTNAME_PROP_NAME[] = "net.hostname";
 static const char DHCP_PROP_NAME_PREFIX[]  = "dhcp";
 static const int  NAP_TIME = 1;   /* wait for 1 second at a time */
@@ -133,7 +135,21 @@ int dhcp_do_request(const char *interface,
     char daemon_cmd[PROPERTY_VALUE_MAX * 2];
     const char *ctrl_prop = "ctl.start";
     const char *desired_status = "running";
+    char * daemon_name;
+    char * daemon_prop_name;
+    
 
+    if(strcmp(interface,"eth0") == 0) 
+    {   
+        daemon_name = DAEMON_NAME_ETH;
+        daemon_prop_name = DAEMON_PROP_NAME_ETH;
+    }
+    else                              
+    {
+        daemon_name = DAEMON_NAME;  
+        daemon_prop_name = DAEMON_PROP_NAME;
+    }
+    LOGW("interface %s",interface);    
     snprintf(result_prop_name, sizeof(result_prop_name), "%s.%s.result",
             DHCP_PROP_NAME_PREFIX,
             interface);
@@ -142,13 +158,14 @@ int dhcp_do_request(const char *interface,
 
     /* Start the daemon and wait until it's ready */
     if (property_get(HOSTNAME_PROP_NAME, prop_value, NULL) && (prop_value[0] != '\0'))
-        snprintf(daemon_cmd, sizeof(daemon_cmd), "%s:-h %s %s", DAEMON_NAME,
+        snprintf(daemon_cmd, sizeof(daemon_cmd), "%s:-h %s %s", daemon_name,
                  prop_value, interface);
     else
-        snprintf(daemon_cmd, sizeof(daemon_cmd), "%s:%s", DAEMON_NAME, interface);
+        snprintf(daemon_cmd, sizeof(daemon_cmd), "%s:%s", daemon_name, interface);
     memset(prop_value, '\0', PROPERTY_VALUE_MAX);
+    LOGW("daemon_cmd -->%s",daemon_cmd);
     property_set(ctrl_prop, daemon_cmd);
-    if (wait_for_property(DAEMON_PROP_NAME, desired_status, 10) < 0) {
+    if (wait_for_property(daemon_prop_name, desired_status, 10) < 0) {
         snprintf(errmsg, sizeof(errmsg), "%s", "Timed out waiting for dhcpcd to start");
         return -1;
     }
@@ -181,13 +198,27 @@ int dhcp_stop(const char *interface)
     char result_prop_name[PROPERTY_KEY_MAX];
     const char *ctrl_prop = "ctl.stop";
     const char *desired_status = "stopped";
+    char * daemon_name;
+    char * daemon_prop_name;
+    
 
+    if(strcmp(interface,"eth0") == 0) 
+    {   
+        daemon_name = DAEMON_NAME_ETH;
+        daemon_prop_name = DAEMON_PROP_NAME_ETH;
+    }
+    else                              
+    {
+        daemon_name = DAEMON_NAME;  
+        daemon_prop_name = DAEMON_PROP_NAME;
+    }
+    
     snprintf(result_prop_name, sizeof(result_prop_name), "%s.%s.result",
             DHCP_PROP_NAME_PREFIX,
             interface);
     /* Stop the daemon and wait until it's reported to be stopped */
-    property_set(ctrl_prop, DAEMON_NAME);
-    if (wait_for_property(DAEMON_PROP_NAME, desired_status, 5) < 0) {
+    property_set(ctrl_prop, daemon_name);
+    if (wait_for_property(daemon_prop_name, desired_status, 5) < 0) {
         return -1;
     }
     property_set(result_prop_name, "failed");
@@ -201,10 +232,23 @@ int dhcp_release_lease(const char *interface)
 {
     const char *ctrl_prop = "ctl.stop";
     const char *desired_status = "stopped";
+    char * daemon_name;
+    char * daemon_prop_name;
+    
 
+    if(strcmp(interface,"eth0") == 0) 
+    {   
+        daemon_name = DAEMON_NAME_ETH;
+        daemon_prop_name = DAEMON_PROP_NAME_ETH;
+    }
+    else                              
+    {
+        daemon_name = DAEMON_NAME;  
+        daemon_prop_name = DAEMON_PROP_NAME;
+    }
     /* Stop the daemon and wait until it's reported to be stopped */
-    property_set(ctrl_prop, DAEMON_NAME);
-    if (wait_for_property(DAEMON_PROP_NAME, desired_status, 5) < 0) {
+    property_set(ctrl_prop, daemon_name);
+    if (wait_for_property(daemon_prop_name, desired_status, 5) < 0) {
         return -1;
     }
     return 0;
