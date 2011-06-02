@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#define LOG_TAG "dhcpcd"
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
@@ -150,12 +151,16 @@ int dhcp_do_request(const char *interface,
         daemon_prop_name = DAEMON_PROP_NAME;
     }
     LOGW("interface %s",interface);    
+    int cnt = 2;
+
     snprintf(result_prop_name, sizeof(result_prop_name), "%s.%s.result",
             DHCP_PROP_NAME_PREFIX,
             interface);
     /* Erase any previous setting of the dhcp result property */
     property_set(result_prop_name, "");
 
+restart:
+    LOGE("---->start dhcp request");
     /* Start the daemon and wait until it's ready */
     if (property_get(HOSTNAME_PROP_NAME, prop_value, NULL) && (prop_value[0] != '\0'))
         snprintf(daemon_cmd, sizeof(daemon_cmd), "%s:-h %s %s", daemon_name,
@@ -173,6 +178,12 @@ int dhcp_do_request(const char *interface,
     /* Wait for the daemon to return a result */
     if (wait_for_property(result_prop_name, NULL, 30) < 0) {
         snprintf(errmsg, sizeof(errmsg), "%s", "Timed out waiting for DHCP to finish");
+    if (cnt -- > 0) {
+	LOGE("---->Stop and restart dhcpcd");
+	property_set("ctl.stop", "dhcpcd");
+	sleep(1);
+	goto restart;
+    } else
         return -1;
     }
 
