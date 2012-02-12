@@ -178,14 +178,15 @@ int dhcp_do_request(const char *interface,
 
     /* Start the daemon and wait until it's ready */
     if (property_get(HOSTNAME_PROP_NAME, prop_value, NULL) && (prop_value[0] != '\0'))
-        snprintf(daemon_cmd, sizeof(daemon_cmd), "%s_%s:-h %s %s", DAEMON_NAME, daemon_suffix,
-                 prop_value, interface);
+        snprintf(daemon_cmd, sizeof(daemon_cmd), "%s_%s", DAEMON_NAME, daemon_suffix);
+//        snprintf(daemon_cmd, sizeof(daemon_cmd), "%s_%s:-h %s %s", DAEMON_NAME, daemon_suffix,
+//                 prop_value, interface);
     else
         snprintf(daemon_cmd, sizeof(daemon_cmd), "%s_%s:%s", DAEMON_NAME, daemon_suffix, interface);
     memset(prop_value, '\0', PROPERTY_VALUE_MAX);
     property_set(ctrl_prop, daemon_cmd);
     if (wait_for_property(daemon_prop_name, desired_status, 10) < 0) {
-        snprintf(errmsg, sizeof(errmsg), "%s", "Timed out waiting for dhcpcd to start");
+        snprintf(errmsg, sizeof(errmsg), "%s: %s", "Timed out waiting for dhcpcd to start", daemon_cmd);
         return -1;
     }
 
